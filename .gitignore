@@ -1,0 +1,18 @@
+# Gradle / Android 빌드 산출물
+build/
+.gradle/
+.kotlin/
+captures/
+
+# 각자 PC마다 다른 SDK 경로가 들어가므로 올리지 않는다.
+# 처음 받으면 Android Studio 가 만들어 주거나, 직접 만들면 된다:
+#   sdk.dir=<Android SDK 경로>
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
