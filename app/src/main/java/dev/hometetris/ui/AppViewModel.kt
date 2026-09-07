@@ -1,4 +1,4 @@
-package dev.junyj.lantetris.ui
+package dev.hometetris.ui
 
 import android.app.Application
 import android.content.Context
@@ -8,22 +8,22 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import dev.junyj.lantetris.core.Action
-import dev.junyj.lantetris.core.BotConfig
-import dev.junyj.lantetris.core.PieceType
-import dev.junyj.lantetris.core.TetrisEngine
-import dev.junyj.lantetris.net.ClientMsg
-import dev.junyj.lantetris.net.ClientSession
-import dev.junyj.lantetris.net.GameSessionService
-import dev.junyj.lantetris.net.HostSession
-import dev.junyj.lantetris.net.SoloSession
-import dev.junyj.lantetris.net.PlayerInfo
-import dev.junyj.lantetris.net.PlayerState
-import dev.junyj.lantetris.net.Room
-import dev.junyj.lantetris.net.ServerMsg
-import dev.junyj.lantetris.net.Session
-import dev.junyj.lantetris.net.Standing
-import dev.junyj.lantetris.net.scanForRooms
+import dev.hometetris.core.Action
+import dev.hometetris.core.BotConfig
+import dev.hometetris.core.PieceType
+import dev.hometetris.core.TetrisEngine
+import dev.hometetris.net.ClientMsg
+import dev.hometetris.net.ClientSession
+import dev.hometetris.net.GameSessionService
+import dev.hometetris.net.HostSession
+import dev.hometetris.net.SoloSession
+import dev.hometetris.net.PlayerInfo
+import dev.hometetris.net.PlayerState
+import dev.hometetris.net.Room
+import dev.hometetris.net.ServerMsg
+import dev.hometetris.net.Session
+import dev.hometetris.net.Standing
+import dev.hometetris.net.scanForRooms
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
@@ -383,7 +383,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun handleLock(r: dev.junyj.lantetris.core.LockResult) {
+    private fun handleLock(r: dev.hometetris.core.LockResult) {
         if (r.attackSent > 0) session?.send(ClientMsg.Attack(r.attackSent))
         lastLockResult = when {
             r.perfectClear -> "퍼펙트 클리어! +${r.attackSent}"

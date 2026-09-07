@@ -1,4 +1,4 @@
-package dev.junyj.lantetris.net
+package dev.hometetris.net
 
 import android.content.Context
 import android.util.Log

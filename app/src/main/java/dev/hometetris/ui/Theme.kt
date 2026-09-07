@@ -1,4 +1,4 @@
-package dev.junyj.lantetris.ui
+package dev.hometetris.ui
 
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -9,7 +9,7 @@ enum class BlockStyle { GLOSS, FLAT, GLOW, SOFT, OUTLINE }
 
 /**
  * 화면 전체의 색과 질감. 디자인 시안(Blocks Game Redesign)의 5개 테마를 그대로 옮겼다.
- * 색을 새로 넣을 때는 [pieceColors] 순서를 반드시 [dev.junyj.lantetris.core.PieceType] 과 맞출 것.
+ * 색을 새로 넣을 때는 [pieceColors] 순서를 반드시 [dev.hometetris.core.PieceType] 과 맞출 것.
  */
 data class GameTheme(
     val key: String,

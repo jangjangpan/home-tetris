@@ -1,9 +1,9 @@
-package dev.junyj.lantetris.net
+package dev.hometetris.net
 
-import dev.junyj.lantetris.core.Action
-import dev.junyj.lantetris.core.BotAi
-import dev.junyj.lantetris.core.BotConfig
-import dev.junyj.lantetris.core.TetrisEngine
+import dev.hometetris.core.Action
+import dev.hometetris.core.BotAi
+import dev.hometetris.core.BotConfig
+import dev.hometetris.core.TetrisEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay

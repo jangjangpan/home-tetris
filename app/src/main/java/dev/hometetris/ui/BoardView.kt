@@ -1,4 +1,4 @@
-package dev.junyj.lantetris.ui
+package dev.hometetris.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -19,12 +19,12 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
-import dev.junyj.lantetris.core.BOARD_W
-import dev.junyj.lantetris.core.HIDDEN_H
-import dev.junyj.lantetris.core.PieceType
-import dev.junyj.lantetris.core.TetrisEngine
-import dev.junyj.lantetris.core.VISIBLE_H
-import dev.junyj.lantetris.core.pieceCells
+import dev.hometetris.core.BOARD_W
+import dev.hometetris.core.HIDDEN_H
+import dev.hometetris.core.PieceType
+import dev.hometetris.core.TetrisEngine
+import dev.hometetris.core.VISIBLE_H
+import dev.hometetris.core.pieceCells
 import kotlin.math.min
 
 private fun lighten(c: Color, amount: Float) = lerp(c, Color.White, amount)

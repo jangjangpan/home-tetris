@@ -135,7 +135,7 @@ Lv7까지는 실수와 속도로, Lv8부터는 **속도와 공격 빈도**로 �
 그림은 `res/drawable-nodpi/joy_run_sheet.png` - 64x64 프레임 8장이 가로로 늘어선 스프라이트 시트입니다.
 `drawable-nodpi` 에 둬야 화면 배율에 따라 미리 늘어나지 않고, 그릴 때도 `FilterQuality.None` 으로
 확대해야 픽셀이 뭉개지지 않습니다. 확대는 **정수 배율**로만 합니다(현재 3배).
-그래서 키워도 픽셀이 깨지지 않습니다. 코드는 [`ui/PixelDog.kt`](app/src/main/java/dev/junyj/lantetris/ui/PixelDog.kt).
+그래서 키워도 픽셀이 깨지지 않습니다. 코드는 [`ui/PixelDog.kt`](app/src/main/java/dev/hometetris/ui/PixelDog.kt).
 
 끄고 싶으면 `ui/Screens.kt` 의 `SHOW_RUNNING_DOG` 를 `false` 로 바꾸면 됩니다.
 

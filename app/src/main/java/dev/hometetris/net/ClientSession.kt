@@ -1,4 +1,4 @@
-package dev.junyj.lantetris.net
+package dev.hometetris.net
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers

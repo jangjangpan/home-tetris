@@ -1,4 +1,4 @@
-package dev.junyj.lantetris.ui
+package dev.hometetris.ui
 
 import android.Manifest
 import android.content.pm.PackageManager

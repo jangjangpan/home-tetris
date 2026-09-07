@@ -1,4 +1,4 @@
-package dev.junyj.lantetris.net
+package dev.hometetris.net
 
 /** 등수를 매길 때 필요한 것만 추린 참가자 상태. */
 data class FinishState(

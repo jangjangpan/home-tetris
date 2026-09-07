@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "dev.junyj.lantetris"
+    namespace = "dev.hometetris"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "dev.junyj.lantetris"
+        applicationId = "dev.hometetris"
         minSdk = 26
         targetSdk = 35
         versionCode = 1

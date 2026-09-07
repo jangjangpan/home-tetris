@@ -1,4 +1,4 @@
-package dev.junyj.lantetris.ui
+package dev.hometetris.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -49,12 +49,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import dev.junyj.lantetris.core.Action
-import dev.junyj.lantetris.core.BotConfig
-import dev.junyj.lantetris.core.TetrisEngine
-import dev.junyj.lantetris.net.DEFAULT_GAME_PORT
-import dev.junyj.lantetris.net.MAX_PLAYERS
-import dev.junyj.lantetris.net.localIpv4
+import dev.hometetris.core.Action
+import dev.hometetris.core.BotConfig
+import dev.hometetris.core.TetrisEngine
+import dev.hometetris.net.DEFAULT_GAME_PORT
+import dev.hometetris.net.MAX_PLAYERS
+import dev.hometetris.net.localIpv4
 
 @Composable
 fun AppRoot(vm: AppViewModel) {

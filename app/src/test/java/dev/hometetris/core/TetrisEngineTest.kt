@@ -1,4 +1,4 @@
-package dev.junyj.lantetris.core
+package dev.hometetris.core
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse

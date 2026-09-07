@@ -1,4 +1,4 @@
-package dev.junyj.lantetris.ui
+package dev.hometetris.ui
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -19,7 +19,7 @@ import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
-import dev.junyj.lantetris.R
+import dev.hometetris.R
 import kotlinx.coroutines.delay
 import kotlin.math.min
 import kotlin.math.roundToInt

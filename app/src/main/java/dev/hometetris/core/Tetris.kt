@@ -1,4 +1,4 @@
-package dev.junyj.lantetris.core
+package dev.hometetris.core
 
 import kotlin.math.max
 import kotlin.random.Random

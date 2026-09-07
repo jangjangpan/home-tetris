@@ -1,4 +1,4 @@
-package dev.junyj.lantetris.net
+package dev.hometetris.net
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -9,7 +9,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
-import dev.junyj.lantetris.R
+import dev.hometetris.R
 
 /**
  * 멀티 게임이 붙어 있는 동안 앱을 "실행 중"으로 붙잡아 두는 포그라운드 서비스.
