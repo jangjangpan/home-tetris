@@ -129,11 +129,14 @@ data class LockResult(
     val perfectClear: Boolean,
 )
 
-class TetrisEngine(seed: Long) {
+class TetrisEngine(seed: Long, val itemMode: Boolean = false) {
 
     val board: Array<IntArray> = Array(BOARD_H) { IntArray(BOARD_W) }
     private val bag = SevenBag(seed)
     private val garbageRng = Random(seed xor 0x5DEECE66DL)
+
+    // 아이템 뽑기도 seed 를 따른다. 모두 같은 seed 라 아이템 순서도 같다 - 운이 아니라 실력으로 갈리게.
+    private val itemRng = Random(seed * 31 + 7)
 
     var type: PieceType = bag.next(); private set
     var rot: Int = 0; private set
@@ -156,9 +159,27 @@ class TetrisEngine(seed: Long) {
     private var lockResets = 0
     private var onGround = false
 
+    // ---- 아이템 모드 ----
+
+    /** 들고 있는 아이템. 슬롯은 하나뿐이라 쓰기 전에는 더 못 얻는다. */
+    var item: ItemKind? = null; private set
+
+    /** 상대에게 걸린 방해가 얼마나 남았는지(ms). 0이면 안 걸린 상태. */
+    var fogMs: Long = 0; private set
+    var noRotateMs: Long = 0; private set
+    var rushMs: Long = 0; private set
+
     val level: Int get() = lines / 10 + 1
-    /** 한 칸 떨어지는 데 걸리는 시간. 화면의 달리는 강아지도 이 속도에 맞춰 뛴다. */
-    val gravityMs: Long get() = max(50L, 800L - (level - 1) * 65L)
+
+    /**
+     * 한 칸 떨어지는 데 걸리는 시간. 화면의 달리는 강아지도 이 속도에 맞춰 뛴다.
+     * 가속 아이템을 맞은 동안에는 그만큼 짧아진다.
+     */
+    val gravityMs: Long
+        get() {
+            val base = max(50L, 800L - (level - 1) * 65L)
+            return if (rushMs > 0) max(30L, base / ItemDuration.RUSH_FACTOR) else base
+        }
 
     fun nextQueue(n: Int): List<PieceType> = bag.peek(n)
 
@@ -214,6 +235,7 @@ class TetrisEngine(seed: Long) {
     }
 
     private fun rotate(dir: Int) {
+        if (noRotateMs > 0) return   // 회전금지를 맞은 동안
         if (type == PieceType.O) return
         val target = ((rot + dir) % 4 + 4) % 4
         val table = if (type == PieceType.I) KICKS_I else KICKS_JLSTZ
@@ -252,6 +274,9 @@ class TetrisEngine(seed: Long) {
     /** dtMs만큼 시간을 흘려보낸다. 블록이 굳었으면 그 결과를 돌려준다. */
     fun update(dtMs: Long): LockResult? {
         if (dead) return null
+        if (fogMs > 0) fogMs = max(0L, fogMs - dtMs)
+        if (noRotateMs > 0) noRotateMs = max(0L, noRotateMs - dtMs)
+        if (rushMs > 0) rushMs = max(0L, rushMs - dtMs)
         val step = gravityMs
         gravityAcc += dtMs
         var result: LockResult? = null
@@ -316,6 +341,8 @@ class TetrisEngine(seed: Long) {
             pendingGarbage = 0
         }
 
+        if (itemMode && cleared > 0) grantItem(cleared)
+
         if (allHidden) dead = true
         holdUsed = false
         spawn(bag.next())
@@ -365,6 +392,93 @@ class TetrisEngine(seed: Long) {
         var y = py
         while (!collides(type, rot, px, y + 1)) y++
         return y
+    }
+
+    // ---- 아이템 ----
+
+    /**
+     * 줄을 지웠을 때 아이템을 줄지 정한다. 많이 지울수록 잘 나온다.
+     * 슬롯이 차 있으면 안 준다 - 쟁여두지 못하게 해서 "지금 쓸까" 를 고민거리로 만든다.
+     */
+    private fun grantItem(cleared: Int) {
+        if (item != null) return
+        val chance = when (cleared) {
+            1 -> 0.35
+            2 -> 0.70
+            else -> 1.0
+        }
+        if (itemRng.nextDouble() < chance) {
+            item = ItemKind.entries[itemRng.nextInt(ItemKind.entries.size)]
+        }
+    }
+
+    /** 들고 있는 아이템을 꺼낸다. 슬롯이 비어 있으면 null. */
+    fun takeItem(): ItemKind? {
+        val k = item ?: return null
+        item = null
+        // 내가 쓰는 아이템이면 바로 내 판에 적용한다. 방해용은 호출한 쪽이 상대에게 보낸다.
+        if (k.target == ItemTarget.SELF) applyToSelf(k)
+        return k
+    }
+
+    private fun applyToSelf(k: ItemKind) {
+        when (k) {
+            ItemKind.CLEAN -> removeBottomRows(2)
+            ItemKind.BOMB -> blastBottom(4)
+            else -> Unit
+        }
+    }
+
+    /** 상대가 나에게 건 방해. */
+    fun receiveItem(k: ItemKind) {
+        if (dead) return
+        when (k) {
+            ItemKind.QUAKE -> shakeRows()
+            ItemKind.FOG -> fogMs = ItemDuration.FOG_MS
+            ItemKind.NO_ROTATE -> noRotateMs = ItemDuration.NO_ROTATE_MS
+            ItemKind.RUSH -> rushMs = ItemDuration.RUSH_MS
+            // 내 이득용이 날아올 일은 없지만, 와도 조용히 무시한다.
+            ItemKind.CLEAN, ItemKind.BOMB -> Unit
+        }
+    }
+
+    /** 맨 아래 [n]줄을 통째로 지운다(청소). */
+    private fun removeBottomRows(n: Int) {
+        repeat(n) {
+            for (y in BOARD_H - 1 downTo 1) board[y] = board[y - 1].copyOf()
+            board[0] = IntArray(BOARD_W)
+        }
+    }
+
+    /** 아래 [rows]줄 범위에서 블록을 듬성듬성 날린다(폭탄). */
+    private fun blastBottom(rows: Int) {
+        for (y in BOARD_H - rows until BOARD_H) {
+            if (y < 0) continue
+            for (x in 0 until BOARD_W) {
+                if (board[y][x] != CELL_EMPTY && itemRng.nextDouble() < 0.55) {
+                    board[y][x] = CELL_EMPTY
+                }
+            }
+        }
+    }
+
+    /** 쌓인 줄들을 좌우로 한 칸씩 어긋나게 민다(지진). 현재 조각은 건드리지 않는다. */
+    private fun shakeRows() {
+        for (y in 0 until BOARD_H) {
+            if (board[y].all { it == CELL_EMPTY }) continue
+            val dir = if (itemRng.nextBoolean()) 1 else -1
+            val row = board[y]
+            val moved = IntArray(BOARD_W)
+            for (x in 0 until BOARD_W) {
+                val nx = x + dir
+                if (nx in 0 until BOARD_W) moved[nx] = row[x]
+                // 밖으로 밀려난 칸은 사라진다
+            }
+            board[y] = moved
+        }
+        // 밀린 결과가 현재 조각과 겹치면 위로 띄운다.
+        while (collides(type, rot, px, py) && py > -2) py--
+        if (collides(type, rot, px, py)) dead = true
     }
 
     fun kill() {

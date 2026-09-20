@@ -38,7 +38,7 @@ class ClientSession(
         outbox.trySend(m)
     }
 
-    override fun startGame() = Unit // 시작은 방장만 할 수 있다
+    override fun startGame(mode: GameMode) = Unit // 시작은 방장만 할 수 있다
 
     override fun close() {
         runCatching { socket?.close() }

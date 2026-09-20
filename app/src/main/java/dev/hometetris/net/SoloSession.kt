@@ -3,6 +3,7 @@ package dev.hometetris.net
 import dev.hometetris.core.Action
 import dev.hometetris.core.BotAi
 import dev.hometetris.core.BotConfig
+import dev.hometetris.core.ItemTarget
 import dev.hometetris.core.TetrisEngine
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -25,6 +26,10 @@ class SoloSession(
     private val myName: String,
     val level: Int,
     private val scope: CoroutineScope,
+    /** 시작 화면에서 고른 대전 방식. 방을 열자마자 이 모드로 시작한다. */
+    private var mode: GameMode = GameMode.NORMAL,
+    /** 컴퓨터의 손 속도를 재는 시계. 테스트에서 가상 시간을 물리려고 뽑아 뒀다. */
+    private val nanoTime: () -> Long = System::nanoTime,
 ) : Session {
 
     override val isHost = true
@@ -72,7 +77,7 @@ class SoloSession(
                     listOf(PlayerInfo(0, myName, true), PlayerInfo(1, botName, false))
                 )
             )
-            startGame()
+            startGame(mode)
         }
     }
 
@@ -88,14 +93,16 @@ class SoloSession(
             }
 
             is ClientMsg.Attack -> bot?.receiveGarbage(m.lines)
+            is ClientMsg.UseItem -> bot?.receiveItem(m.kind)
             ClientMsg.Dead -> killPlayer()
         }
     }
 
-    override fun startGame() {
+    override fun startGame(mode: GameMode) {
+        this.mode = mode
         loopJob?.cancel()
         val seed = rng.nextLong()
-        bot = TetrisEngine(seed)
+        bot = TetrisEngine(seed, itemMode = mode == GameMode.ITEM)
         botAlive = true
         playerAlive = true
         botDeathOrder = 0
@@ -112,7 +119,7 @@ class SoloSession(
 
         loopJob = scope.launch {
             // 사람 쪽과 똑같이 3초 세고 시작한다. 그동안 컴퓨터도 손을 놓고 있는다.
-            _incoming.emit(ServerMsg.Start(seed, COUNTDOWN_MS))
+            _incoming.emit(ServerMsg.Start(seed, COUNTDOWN_MS, mode))
             delay(COUNTDOWN_MS)
             runBotLoop()
         }
@@ -124,10 +131,10 @@ class SoloSession(
     }
 
     private suspend fun runBotLoop() {
-        var last = System.nanoTime()
+        var last = nanoTime()
         while (scope.isActive && !finished) {
             delay(16)
-            val now = System.nanoTime()
+            val now = nanoTime()
             val dt = ((now - last) / 1_000_000L).coerceIn(0L, 100L)
             last = now
 
@@ -169,6 +176,13 @@ class SoloSession(
             hasPlan = false
             if (result != null && result.attackSent > 0) {
                 _incoming.emit(ServerMsg.Garbage(result.attackSent, botName))
+            }
+            // 아이템은 손에 들어오는 대로 쓴다. 언제 쓸지까지 재는 판단은 넣지 않았다.
+            b.item?.let {
+                val used = b.takeItem()
+                if (used != null && used.target == ItemTarget.ENEMY) {
+                    _incoming.emit(ServerMsg.ItemHit(used, botName))
+                }
             }
         }
     }

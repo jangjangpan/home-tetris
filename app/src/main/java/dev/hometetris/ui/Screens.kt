@@ -51,6 +51,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.hometetris.core.Action
 import dev.hometetris.core.BotConfig
+import dev.hometetris.core.ItemKind
+import dev.hometetris.net.GameMode
 import dev.hometetris.core.TetrisEngine
 import dev.hometetris.net.DEFAULT_GAME_PORT
 import dev.hometetris.net.MAX_PLAYERS
@@ -161,6 +163,48 @@ private fun GhostButton(
         ),
     ) {
         Text(text, fontSize = 15.sp, fontFamily = t.font)
+    }
+}
+
+/** 노멀 / 아이템 고르기. 싱글 설정과 멀티 로비에서 같이 쓴다. */
+@Composable
+private fun ModePicker(vm: AppViewModel, t: GameTheme, enabled: Boolean = true) {
+    Column {
+        Label("대전 방식", t, 11)
+        Spacer(Modifier.height(6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            GameMode.entries.forEach { m ->
+                val on = vm.mode == m
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .height(46.dp)
+                        .clip(RoundedCornerShape(13.dp))
+                        .background(if (on) t.accent else t.panel)
+                        .border(1.dp, if (on) t.accent else t.edge, RoundedCornerShape(13.dp))
+                        .then(if (enabled) Modifier.clickable { vm.pickMode(m) } else Modifier),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        if (m == GameMode.NORMAL) "노멀" else "아이템",
+                        color = if (on) t.bg else if (enabled) t.ink else t.inkDim,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = t.font,
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            if (vm.mode == GameMode.ITEM)
+                "줄을 지우면 아이템이 나옵니다. 슬롯은 하나뿐이라 아껴 쓸 수 없습니다."
+            else
+                "아이템 없이 순수하게 겨룹니다.",
+            color = t.inkDim,
+            fontSize = 12.sp,
+            fontFamily = t.font,
+        )
     }
 }
 
@@ -318,6 +362,9 @@ private fun SoloSetupScreen(vm: AppViewModel, t: GameTheme) {
             fontFamily = t.font,
             modifier = Modifier.padding(top = 6.dp, bottom = 18.dp),
         )
+
+        ModePicker(vm, t)
+        Spacer(Modifier.height(16.dp))
 
         Text("난이도", color = t.ink, fontSize = 15.sp, fontWeight = FontWeight.Bold, fontFamily = t.font)
         Spacer(Modifier.height(10.dp))
@@ -514,6 +561,18 @@ private fun LobbyScreen(vm: AppViewModel, t: GameTheme) {
                 Text("연결 중…", color = t.inkDim, fontSize = 14.sp, fontFamily = t.font)
             }
         }
+
+        ModePicker(vm, t, enabled = vm.isHost)
+        if (!vm.isHost) {
+            Text(
+                "대전 방식은 방장이 정합니다",
+                color = t.inkDim,
+                fontSize = 11.sp,
+                fontFamily = t.font,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+        Spacer(Modifier.height(12.dp))
 
         if (vm.isHost) {
             PrimaryButton(
@@ -790,6 +849,42 @@ private fun BoardArea(
                     .fillMaxSize()
                     .clip(RoundedCornerShape(13.dp))
                     .background(t.boardBg),
+            )
+        }
+
+        // 안개: 판을 거의 가린다. 조각이 어디 있었는지 기억해서 둬야 한다.
+        if (vm.hudFogMs > 0) {
+            Box(
+                Modifier
+                    .size(boardWidth, boardHeight)
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(t.ink.copy(alpha = 0.93f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    "안개  ${(vm.hudFogMs / 1000) + 1}",
+                    color = t.bg,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = t.font,
+                )
+            }
+        }
+
+        // 회전금지·가속은 눈에 안 보이는 효과라 글로 알려 준다.
+        val effect = when {
+            vm.hudNoRotateMs > 0 -> "회전금지 ${(vm.hudNoRotateMs / 1000) + 1}"
+            vm.hudRushMs > 0 -> "가속 ${(vm.hudRushMs / 1000) + 1}"
+            else -> null
+        }
+        effect?.let {
+            Text(
+                it,
+                color = t.pieceColors[6],
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = t.font,
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 30.dp),
             )
         }
 
@@ -1101,6 +1196,10 @@ private fun ControlPad(vm: AppViewModel, t: GameTheme) = Box(
         verticalAlignment = Alignment.Bottom,
     ) {
         Box(Modifier.size(152.dp, 190.dp)) {
+            // 십자라서 네 모서리가 빈다. 아이템 버튼은 그 자리에 넣어 폭을 더 먹지 않게 한다.
+            if (vm.itemMode) {
+                ItemButton(vm, t, Modifier.offset(0.dp, 2.dp).size(44.dp, 54.dp))
+            }
             PadButton("↺", t, Modifier.offset(47.dp, 0.dp).size(58.dp), radius = 20) {
                 vm.tap(Action.ROTATE_CCW)
             }
@@ -1177,6 +1276,51 @@ private fun PadButton(
             fontWeight = FontWeight.Bold,
             fontFamily = if (label.length > 2) t.font else FontFamily.Default,
         )
+    }
+}
+
+/**
+ * 아이템 슬롯 겸 사용 버튼. 비어 있으면 눌러도 아무 일도 없고 흐릿하게 보인다.
+ * 슬롯이 하나뿐이라 "지금 쓸까" 를 고민하게 만드는 게 이 모드의 핵심이다.
+ */
+@Composable
+private fun ItemButton(vm: AppViewModel, t: GameTheme, modifier: Modifier = Modifier) {
+    val item: ItemKind? = vm.hudItem
+    val ready = item != null
+    var pressed by remember { mutableStateOf(false) }
+    Box(
+        modifier
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (pressed) t.accent.copy(alpha = 0.35f) else if (ready) t.accentSoft else t.btnBg)
+            .border(1.dp, if (ready) t.accent else t.btnEdge, RoundedCornerShape(12.dp))
+            .pointerInput(ready) {
+                detectTapGestures(
+                    onPress = {
+                        if (!ready) return@detectTapGestures
+                        pressed = true
+                        vm.useItem()
+                        tryAwaitRelease()
+                        pressed = false
+                    }
+                )
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                item?.icon ?: "·",
+                color = if (ready) t.accent else t.inkDim,
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                item?.label ?: "아이템",
+                color = if (ready) t.accentInk else t.inkDim,
+                fontSize = 8.sp,
+                fontFamily = t.font,
+                maxLines = 1,
+            )
+        }
     }
 }
 

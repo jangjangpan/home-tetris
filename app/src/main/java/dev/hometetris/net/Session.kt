@@ -13,7 +13,7 @@ interface Session {
     fun send(m: ClientMsg)
 
     /** 호스트만 의미가 있다. 로비에서 게임을 시작한다. */
-    fun startGame()
+    fun startGame(mode: GameMode = GameMode.NORMAL)
 
     fun close()
 }

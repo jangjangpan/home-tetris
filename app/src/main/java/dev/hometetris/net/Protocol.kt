@@ -1,5 +1,6 @@
 package dev.hometetris.net
 
+import dev.hometetris.core.ItemKind
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -13,6 +14,9 @@ const val DISCOVER_PING = "LANTETRIS?v1"
 const val DISCOVER_PONG = "LANTETRIS!v1"
 
 data class PlayerInfo(val id: Int, val name: String, val isHost: Boolean)
+
+/** 대전 방식. 방장이 정하고 모두가 같은 모드로 논다. */
+enum class GameMode { NORMAL, ITEM }
 
 data class PlayerState(
     val id: Int,
@@ -29,9 +33,12 @@ data class Standing(val rank: Int, val name: String, val score: Long, val lines:
 sealed interface ServerMsg {
     data class Welcome(val id: Int) : ServerMsg
     data class Lobby(val players: List<PlayerInfo>) : ServerMsg
-    data class Start(val seed: Long, val countdownMs: Long) : ServerMsg
+    data class Start(val seed: Long, val countdownMs: Long, val mode: GameMode = GameMode.NORMAL) : ServerMsg
     data class World(val players: List<PlayerState>) : ServerMsg
     data class Garbage(val lines: Int, val from: String) : ServerMsg
+
+    /** 누군가 나에게 방해 아이템을 썼다. */
+    data class ItemHit(val kind: ItemKind, val from: String) : ServerMsg
     data class Over(val standings: List<Standing>) : ServerMsg
     data class Bye(val reason: String) : ServerMsg
 }
@@ -47,6 +54,9 @@ sealed interface ClientMsg {
     ) : ClientMsg
 
     data class Attack(val lines: Int) : ClientMsg
+
+    /** 방해 아이템을 상대에게 날린다. 누구에게 갈지는 서버가 고른다. */
+    data class UseItem(val kind: ItemKind) : ClientMsg
     data object Dead : ClientMsg
 }
 
@@ -63,7 +73,8 @@ object Codec {
             }
         )
 
-        is ServerMsg.Start -> JSONObject().put("t", "start").put("seed", m.seed).put("cd", m.countdownMs)
+        is ServerMsg.Start -> JSONObject().put("t", "start").put("seed", m.seed)
+            .put("cd", m.countdownMs).put("mode", m.mode.name)
         is ServerMsg.World -> JSONObject().put("t", "world").put(
             "p",
             JSONArray().apply {
@@ -79,6 +90,7 @@ object Codec {
         )
 
         is ServerMsg.Garbage -> JSONObject().put("t", "gb").put("n", m.lines).put("f", m.from)
+        is ServerMsg.ItemHit -> JSONObject().put("t", "item").put("k", m.kind.name).put("f", m.from)
         is ServerMsg.Over -> JSONObject().put("t", "over").put(
             "s",
             JSONArray().apply {
@@ -99,7 +111,12 @@ object Codec {
                 PlayerInfo(it.optInt("id"), it.optString("n"), it.optBoolean("h"))
             })
 
-            "start" -> ServerMsg.Start(o.optLong("seed"), o.optLong("cd"))
+            "start" -> ServerMsg.Start(
+                o.optLong("seed"),
+                o.optLong("cd"),
+                // 예전 버전이 보낸 메시지에는 mode 가 없다. 그때는 노멀로 본다.
+                runCatching { GameMode.valueOf(o.optString("mode", "NORMAL")) }.getOrDefault(GameMode.NORMAL),
+            )
             "world" -> ServerMsg.World(o.optJSONArray("p").mapObjects {
                 PlayerState(
                     it.optInt("id"), it.optString("n"), it.optString("b"),
@@ -108,6 +125,7 @@ object Codec {
             })
 
             "gb" -> ServerMsg.Garbage(o.optInt("n"), o.optString("f"))
+            "item" -> ItemKind.byName(o.optString("k"))?.let { ServerMsg.ItemHit(it, o.optString("f")) }
             "over" -> ServerMsg.Over(o.optJSONArray("s").mapObjects {
                 Standing(it.optInt("r"), it.optString("n"), it.optLong("sc"), it.optInt("ln"))
             })
@@ -123,6 +141,7 @@ object Codec {
             .put("sc", m.score).put("ln", m.lines).put("pg", m.pending).put("a", m.alive)
 
         is ClientMsg.Attack -> JSONObject().put("t", "atk").put("n", m.lines)
+        is ClientMsg.UseItem -> JSONObject().put("t", "useitem").put("k", m.kind.name)
         ClientMsg.Dead -> JSONObject().put("t", "dead")
     }.toString()
 
@@ -135,6 +154,7 @@ object Codec {
             )
 
             "atk" -> ClientMsg.Attack(o.optInt("n"))
+            "useitem" -> ItemKind.byName(o.optString("k"))?.let { ClientMsg.UseItem(it) }
             "dead" -> ClientMsg.Dead
             else -> null
         }

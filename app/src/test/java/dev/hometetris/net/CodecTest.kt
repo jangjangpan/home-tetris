@@ -1,5 +1,6 @@
 package dev.hometetris.net
 
+import dev.hometetris.core.ItemKind
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -16,10 +17,13 @@ class CodecTest {
                 listOf(PlayerInfo(0, "아빠", true), PlayerInfo(1, "딸", false))
             ),
             ServerMsg.Start(-98765432101234L, 3000),
+            ServerMsg.Start(42L, 3000, GameMode.ITEM),
             ServerMsg.World(
                 listOf(PlayerState(0, "아빠", board, 12345, 42, 3, true))
             ),
             ServerMsg.Garbage(4, "엄마"),
+            ServerMsg.ItemHit(ItemKind.FOG, "엄마"),
+            ServerMsg.ItemHit(ItemKind.NO_ROTATE, "아빠"),
             ServerMsg.Over(listOf(Standing(1, "딸", 9000, 30), Standing(2, "아빠", 100, 2))),
             ServerMsg.Bye("방장이 방을 닫았습니다"),
         )
@@ -38,6 +42,8 @@ class CodecTest {
             ClientMsg.State(board, 777, 12, 5, true),
             ClientMsg.State(board, 0, 0, 0, false),
             ClientMsg.Attack(4),
+            ClientMsg.UseItem(ItemKind.QUAKE),
+            ClientMsg.UseItem(ItemKind.RUSH),
             ClientMsg.Dead,
         )
         for (m in messages) {
@@ -60,5 +66,20 @@ class CodecTest {
             assertEquals(null, Codec.decodeServer(it))
             assertEquals(null, Codec.decodeClient(it))
         }
+    }
+
+    /** 모드가 빠진 옛 start 메시지는 노멀로 읽는다 - 옛 기기와 섞여도 방이 안 깨지게. */
+    @Test
+    fun startWithoutModeFallsBackToNormal() {
+        val decoded = Codec.decodeServer("""{"t":"start","seed":7,"cd":3000}""") as ServerMsg.Start
+        assertEquals(GameMode.NORMAL, decoded.mode)
+        assertEquals(7L, decoded.seed)
+    }
+
+    /** 모르는 아이템 이름은 예외 대신 null 이어야 한다. */
+    @Test
+    fun unknownItemNameIsIgnored() {
+        assertEquals(null, Codec.decodeServer("""{"t":"item","k":"없는것","f":"엄마"}"""))
+        assertEquals(null, Codec.decodeClient("""{"t":"useitem","k":"없는것"}"""))
     }
 }

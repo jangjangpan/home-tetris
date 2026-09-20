@@ -2,6 +2,7 @@ package dev.hometetris.net
 
 import android.content.Context
 import android.util.Log
+import dev.hometetris.core.ItemKind
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -91,7 +92,11 @@ class HostSession(
         inbox.trySend(0 to m)
     }
 
-    override fun startGame() {
+    @Volatile
+    private var pendingMode = GameMode.NORMAL
+
+    override fun startGame(mode: GameMode) {
+        pendingMode = mode
         inbox.trySend(-1 to null) // 시작 신호
     }
 
@@ -202,6 +207,7 @@ class HostSession(
                 }
 
                 is ClientMsg.Attack -> routeAttack(peer, msg.lines)
+                is ClientMsg.UseItem -> routeItem(peer, msg.kind)
                 ClientMsg.Dead -> markDead(peer)
             }
         }
@@ -229,7 +235,7 @@ class HostSession(
             it.board = "0".repeat(200)
         }
         // 모두 같은 seed를 쓰므로 블록 순서가 똑같다. 운이 아니라 실력으로 갈리게.
-        broadcast(ServerMsg.Start(rng.nextLong(), 3000L))
+        broadcast(ServerMsg.Start(rng.nextLong(), 3000L, pendingMode))
     }
 
     /** 공격은 나를 뺀 생존자 중 무작위 한 명에게 간다. */
@@ -239,6 +245,15 @@ class HostSession(
         if (targets.isEmpty()) return
         val target = targets[rng.nextInt(targets.size)]
         writeTo(target, ServerMsg.Garbage(lines, from.name))
+    }
+
+    /** 방해 아이템도 공격과 같은 규칙으로, 나를 뺀 생존자 중 무작위 한 명에게 간다. */
+    private fun routeItem(from: Peer, kind: ItemKind) {
+        if (phase != Phase.PLAYING) return
+        val targets = peers.values.filter { it.id != from.id && it.joined && it.connected && it.alive }
+        if (targets.isEmpty()) return
+        val target = targets[rng.nextInt(targets.size)]
+        writeTo(target, ServerMsg.ItemHit(kind, from.name))
     }
 
     private fun markDead(peer: Peer) {

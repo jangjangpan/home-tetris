@@ -56,6 +56,7 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.9.0")
     // 안드로이드의 org.json 은 유닛 테스트에서 Stub! 예외를 던지므로 실제 구현체를 넣어 준다
     testImplementation("org.json:json:20240303")
 }

@@ -10,6 +10,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import dev.hometetris.core.Action
 import dev.hometetris.core.BotConfig
+import dev.hometetris.core.ItemKind
+import dev.hometetris.core.ItemTarget
+import dev.hometetris.net.GameMode
 import dev.hometetris.core.PieceType
 import dev.hometetris.core.TetrisEngine
 import dev.hometetris.net.ClientMsg
@@ -65,6 +68,21 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var botLevel by mutableStateOf(prefs.getInt("botLevel", 3).coerceIn(BotConfig.MIN_LEVEL, BotConfig.MAX_LEVEL))
 
+    /** 노멀/아이템. 멀티에서는 방장이 고른 것이 모두에게 적용된다. */
+    var mode by mutableStateOf(
+        runCatching { GameMode.valueOf(prefs.getString("mode", "NORMAL")!!) }.getOrDefault(GameMode.NORMAL)
+    )
+        private set
+
+    fun pickMode(m: GameMode) {
+        mode = m
+        prefs.edit().putString("mode", m.name).apply()
+    }
+
+    /** 지금 판이 아이템 모드인지. Start 메시지가 정한다. */
+    var itemMode by mutableStateOf(false)
+        private set
+
     /** 화면 테마. 블록 질감까지 함께 바뀐다. */
     var theme by mutableStateOf(themeByKey(prefs.getString("theme", null)))
         private set
@@ -99,6 +117,15 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         private set
     var hudHold by mutableStateOf<PieceType?>(null)
         private set
+    var hudItem by mutableStateOf<ItemKind?>(null)
+        private set
+    /** 나에게 걸린 방해가 남아 있는지. 화면을 가리거나 알려 주는 데 쓴다. */
+    var hudFogMs by mutableStateOf(0L)
+        private set
+    var hudNoRotateMs by mutableStateOf(0L)
+        private set
+    var hudRushMs by mutableStateOf(0L)
+        private set
     val hudNext = mutableStateListOf<PieceType>()
 
     private fun syncHud(e: TetrisEngine) {
@@ -107,6 +134,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         if (hudLevel != e.level) hudLevel = e.level
         if (hudGravityMs != e.gravityMs) hudGravityMs = e.gravityMs
         if (hudHold != e.hold) hudHold = e.hold
+        if (hudItem != e.item) hudItem = e.item
+        if (hudFogMs != e.fogMs) hudFogMs = e.fogMs
+        if (hudNoRotateMs != e.noRotateMs) hudNoRotateMs = e.noRotateMs
+        if (hudRushMs != e.rushMs) hudRushMs = e.rushMs
         val next = e.nextQueue(4)
         if (hudNext != next) {
             hudNext.clear()
@@ -173,7 +204,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         closeSession()
         isSolo = true
         isHost = true
-        bind(SoloSession(n, botLevel, viewModelScope))
+        bind(SoloSession(n, botLevel, viewModelScope, mode))
     }
 
     fun hostRoom() {
@@ -244,7 +275,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun startGame() {
-        session?.startGame()
+        session?.startGame(mode)
     }
 
     fun backToLobby() {
@@ -259,7 +290,7 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         stopLoop()
         engine = null
         opponents.clear()
-        session?.startGame()
+        session?.startGame(mode)
     }
 
     // ---- 서버 메시지 ----
@@ -276,11 +307,18 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
                 lobbyPlayers.addAll(m.players)
             }
 
-            is ServerMsg.Start -> beginMatch(m.seed, m.countdownMs)
+            is ServerMsg.Start -> beginMatch(m.seed, m.countdownMs, m.mode)
 
             is ServerMsg.World -> {
                 opponents.clear()
                 opponents.addAll(m.players.filter { it.id != myId })
+            }
+
+            is ServerMsg.ItemHit -> {
+                engine?.receiveItem(m.kind)
+                attackFlash = AttackFlash("${m.from} · ${m.kind.label}", 0, System.currentTimeMillis())
+                flashUntil = System.currentTimeMillis() + 1500
+                engine?.let { syncHud(it) }
             }
 
             is ServerMsg.Garbage -> {
@@ -312,9 +350,10 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    private fun beginMatch(seed: Long, countdownMs: Long) {
+    private fun beginMatch(seed: Long, countdownMs: Long, gameMode: GameMode) {
         stopLoop()
-        val e = TetrisEngine(seed)
+        itemMode = gameMode == GameMode.ITEM
+        val e = TetrisEngine(seed, itemMode = itemMode)
         engine = e
         // 카운트다운 동안에도 상대 자리를 미리 잡아 둔다.
         // 안 그러면 첫 World가 도착하는 순간 내 보드가 아래로 밀리며 화면이 출렁인다.
@@ -438,6 +477,16 @@ class AppViewModel(app: Application) : AndroidViewModel(app) {
         softDropping = true
         softDropAcc = 0
         e.input(Action.SOFT_DROP)
+    }
+
+    /** 아이템 사용. 내 이득용은 엔진이 바로 적용하고, 방해용은 상대에게 보낸다. */
+    fun useItem() {
+        val e = engine ?: return
+        if (countdown > 0 || e.dead) return
+        val used = e.takeItem() ?: return
+        if (used.target == ItemTarget.ENEMY) session?.send(ClientMsg.UseItem(used))
+        lastLockResult = "${used.label}!"
+        syncHud(e)
     }
 
     fun releaseSoftDrop() {
