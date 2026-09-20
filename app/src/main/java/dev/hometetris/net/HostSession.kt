@@ -251,9 +251,8 @@ class HostSession(
     private fun checkGameOver() {
         if (phase != Phase.PLAYING) return
         val joined = peers.values.filter { it.joined }
-        val aliveCount = joined.count { it.alive }
-        val endThreshold = if (joined.size <= 1) 0 else 1
-        if (aliveCount > endThreshold) return
+        // 끝나는 조건은 생존자 수뿐이다. 점수로는 끝나지 않는다.
+        if (!isMatchOver(joined.size, joined.count { it.alive })) return
 
         phase = Phase.OVER
         val standings = standingsOf(

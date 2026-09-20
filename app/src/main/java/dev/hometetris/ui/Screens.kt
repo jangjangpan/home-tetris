@@ -531,6 +531,15 @@ private fun ResultScreen(vm: AppViewModel, t: GameTheme) {
     Column(Modifier.fillMaxSize(), horizontalAlignment = Alignment.CenterHorizontally) {
         Spacer(Modifier.height(32.dp))
         Text("결과", color = t.ink, fontSize = 29.sp, fontWeight = FontWeight.Bold, fontFamily = t.font)
+        // 무엇 때문에 끝났는지 적어 둔다. 안 그러면 "점수 때문에 끝났나?" 하고 헷갈린다.
+        Text(
+            if (vm.standings.size >= 2) "${vm.standings.first().name} 님이 마지막까지 남았습니다"
+            else "판이 끝났습니다",
+            color = t.inkDim,
+            fontSize = 13.sp,
+            fontFamily = t.font,
+            modifier = Modifier.padding(top = 4.dp),
+        )
         Spacer(Modifier.height(16.dp))
         vm.standings.forEach { s ->
             Row(

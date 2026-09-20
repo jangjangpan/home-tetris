@@ -31,6 +31,29 @@ class BotAiTest {
         assertTrue("가장 빠를 때도 사람이 볼 수 있는 속도여야 한다", configs.last().placeIntervalMs > 100)
     }
 
+    /**
+     * 상위 난이도는 **손이 빨라서**가 아니라 **수를 읽어서** 세야 한다.
+     * 예전에는 Lv8~10이 실력은 같고 속도만 달라서, 사용자가 "난이도에 비해 너무 빠르다"고 지적했다.
+     */
+    @Test
+    fun topLevelsWinByReadingNotBySpeed() {
+        val l10 = BotConfig.forLevel(10)
+        assertTrue("최고 난이도도 사람이 따라갈 만한 속도여야 한다 (${l10.placeIntervalMs}ms)",
+            l10.placeIntervalMs >= 600)
+        assertTrue("9~10은 두 수 앞을 본다", BotConfig.forLevel(9).deepSearch && l10.deepSearch)
+        assertTrue("8 이하는 두 수까지 보지 않는다", !BotConfig.forLevel(8).deepSearch)
+    }
+
+    /** Lv5 가 "제법 두는" 중간 지점이다. 예전 Lv7 실력을 여기로 내렸다. */
+    @Test
+    fun levelFiveIsTheCompetentMidpoint() {
+        val l5 = BotConfig.forLevel(5)
+        assertTrue("실수가 거의 없다", l5.mistakeChance <= 0.10)
+        assertTrue("한 수 앞은 본다", l5.lookahead)
+        assertTrue("아직 두 수까지는 아니다", !l5.deepSearch)
+        assertTrue("아래 난이도는 앞을 안 본다", !BotConfig.forLevel(3).lookahead)
+    }
+
     @Test
     fun levelIsClamped() {
         assertEquals(1, BotConfig.forLevel(0).level)

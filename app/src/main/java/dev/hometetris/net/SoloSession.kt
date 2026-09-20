@@ -174,8 +174,15 @@ class SoloSession(
     }
 
     private fun plan(b: TetrisEngine) {
-        val next = if (config.lookahead) b.nextQueue(1).firstOrNull() else null
-        val p = BotAi.choose(b.board, b.type, next, config, rng)
+        // 두 수 앞을 보는 난이도면 다음다음 조각까지 넘긴다.
+        val upcoming = if (config.lookahead) b.nextQueue(2) else emptyList()
+        val p = BotAi.choose(
+            b.board, b.type,
+            next = upcoming.getOrNull(0),
+            config = config,
+            rng = rng,
+            next2 = upcoming.getOrNull(1),
+        )
         if (p == null) {
             // 놓을 자리가 없다 = 컴퓨터도 게임 오버.
             b.kill()

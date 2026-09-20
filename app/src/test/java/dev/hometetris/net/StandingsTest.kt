@@ -1,6 +1,8 @@
 package dev.hometetris.net
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -61,6 +63,27 @@ class StandingsTest {
     fun whenEveryoneDiedTheLastOneRanksFirst() {
         val s = standingsOf(listOf(died("먼저", 1), died("나중", 2)))
         assertEquals(listOf("나중", "먼저"), s.map { it.name })
+    }
+
+    /**
+     * 판이 끝나는 조건은 **생존자 수 하나뿐**이다.
+     * 점수는 아무리 높아도 판을 끝내지 못한다.
+     */
+    @Test
+    fun matchEndsOnlyWhenOneSurvivorRemains() {
+        // 4인전
+        assertTrue("한 명 남으면 끝", isMatchOver(joined = 4, alive = 1))
+        assertTrue("모두 죽어도 끝", isMatchOver(joined = 4, alive = 0))
+        assertFalse("둘 남았으면 계속", isMatchOver(joined = 4, alive = 2))
+        assertFalse("셋 남았으면 계속", isMatchOver(joined = 4, alive = 3))
+
+        // 1:1
+        assertTrue(isMatchOver(joined = 2, alive = 1))
+        assertFalse(isMatchOver(joined = 2, alive = 2))
+
+        // 혼자 연습은 내가 죽어야 끝
+        assertFalse(isMatchOver(joined = 1, alive = 1))
+        assertTrue(isMatchOver(joined = 1, alive = 0))
     }
 
     /** 혼자 있을 때도 1위 하나만 나온다. */
