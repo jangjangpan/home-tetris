@@ -899,7 +899,8 @@ private fun BoardArea(
         }
         vm.attackFlash?.let {
             Text(
-                "${it.from} → +${it.lines}줄",
+                // 아이템은 줄 수가 없다. "+0줄" 이 붙으면 뭘 맞았는지 오히려 헷갈린다.
+                if (it.lines > 0) "${it.from} → +${it.lines}줄" else it.from,
                 color = t.pieceColors[6],
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
